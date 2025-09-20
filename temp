@@ -1,0 +1,474 @@
+# repos/cutgrass_autofarm/bot_chest.py
+
+import time
+import random
+from PIL import ImageGrab
+from bot_utils import now
+
+
+class ChestHandler:
+    def __init__(self, injector, valid_auras, valid_types):
+        self.injector = injector
+        self.valid_auras = valid_auras
+        self.valid_types = valid_types
+        self.active = False
+        self.allow_movement = False
+
+    def sync_flags(self, active, allow_movement):
+        self.active = active
+        self.allow_movement = allow_movement
+        
+    # === Pixel & Input ===
+    def get_pixel(self, x, y):
+        if not self.active:
+            print(f"{now()} 🛑 Killswitch triggered before pixel grab—skipping ({x},{y})")
+            return (0, 0, 0)
+        try:
+            img = ImageGrab.grab(bbox=(x, y, x+1, y+1))
+            return img.getpixel((0, 0))
+        except Exception as e:
+            print(f"{now()} ⚠️ Pixel read failed at ({x},{y}): {e}")
+            return (0, 0, 0)
+
+    def color_match(self, c1, c2, tolerance=20):
+        return all(abs(a - b) <= tolerance for a, b in zip(c1, c2))
+
+    def click(self, x, y):
+        jiggle_radius = 3
+        for dx, dy in [(-jiggle_radius, 0), (jiggle_radius, 0), (0, -jiggle_radius), (0, jiggle_radius)]:
+            self.injector.move(x + dx, y + dy)
+            time.sleep(0.01)
+        self.injector.move(x, y)
+        time.sleep(0.05)
+        self.injector.click(x, y)
+        time.sleep(0.05)
+
+    # === Chest UI ===
+    def get_chest_ui_region(self):
+        return [(x, y) for x in range(796, 796 + 95) for y in range(914, 914 + 35)]
+
+    def red_saturation(self, region):
+        red_pixels = 0
+        total_pixels = 0
+        
+        # Iterate through the region to count red pixels
+        for x, y in region:
+            try:
+                pixel = self.get_pixel(x, y)
+            except Exception as e:
+                print(f"{now()} ⚠️ Error getting pixel at ({x}, {y}): {e}")
+                continue
+
+            # Check for a strong red component
+            if pixel[0] > 150 and pixel[0] > pixel[1] + 50 and pixel[0] > pixel[2] + 50:
+                red_pixels += 1
+            
+            total_pixels += 1
+
+        # Return the saturation as a ratio
+        return red_pixels / total_pixels if total_pixels else 0
+
+    def discard_button_present(self):
+        region = [(x, y) for x in range(800, 800 + 90) for y in range(915, 915 + 30)]
+        target_colors = [(255, 0, 7), (179, 0, 5)]
+        for x, y in region:
+            if not self.active:
+                print(f"{now()} 🛑 Killswitch triggered during discard scan—exiting")
+                return False
+            pixel = self.get_pixel(x, y)
+            for target in target_colors:
+                if self.color_match(pixel, target, tolerance=30):
+                    print(f"{now()} 🎯 Discard button matched tone: {target}")
+                    return True
+        return False
+
+    def discard_button_darkened(self):
+        pixel = self.get_pixel(845, 930)
+        return pixel[0] < 100 and pixel[1] > 50 and pixel[2] > 50
+
+
+    def wait_for_discard_absence(self, timeout=15):
+        start_time = time.time()
+        while self.discard_button_present():
+            if time.time() - start_time > timeout:
+                print(f"{now()}⏱️ Discard button still present after timeout")
+                return False
+            time.sleep(0.1)
+        print(f"{now()}📴 Discard button gone")
+        time.sleep(random.uniform(4, 5))
+        return True
+
+    # === Chest Logic ===
+    def get_aura_and_type(self):
+        try:
+            # get_pixel is a function that can fail
+            aura = self.get_pixel(1015, 679)
+            chest_type = self.get_pixel(960, 500)
+            # Ensure both are tuples; if not, return None
+            if not isinstance(aura, tuple) or not isinstance(chest_type, tuple):
+                print(f"{now()} ❌ get_aura_and_type: Failed to get pixel data. Returning None.")
+                return None, None
+            return aura, chest_type
+        except Exception as e:
+            print(f"{now()} ❌ An error occurred in get_aura_and_type: {e}. Returning None.")
+            return None, None
+    def is_valid_aura(self, c):
+        return any(self.color_match(c, val) for val in self.valid_auras.values())
+
+    def is_valid_type(self, c):
+        return any(self.color_match(c, val) for val in self.valid_types.values())
+
+    def is_wood_chest(self):
+        region = [(x, y) for x in range(990, 1000) for y in range(840, 850)]
+        match_count = 0
+        volatile_count = 0
+        ref_pixel = self.get_pixel(995, 845)
+        for x, y in region:
+            pixel = self.get_pixel(x, y)
+            if self.color_match(pixel, (220, 198, 165), tolerance=30):
+                match_count += 1
+            if not self.color_match(pixel, ref_pixel, tolerance=10):
+                volatile_count += 1
+        return match_count > 50 and volatile_count < 20
+    def is_discard_button_present(self):
+        """
+        Checks for the presence of the discard button by
+        examining the red saturation of a specific region.
+        Returns True if the button is likely present, False otherwise.
+        """
+        # Define the region where the discard button is located
+        discard_button_region = (950, 950, 960, 960) # Example coordinates
+        
+        # Use your existing red_saturation logic on this specific region
+        saturation_score = self.red_saturation(discard_button_region)
+        
+        # Return True if the score is above a certain threshold, which
+        # indicates the button's presence
+        return saturation_score > 0.5 # Adjust threshold as needed
+def handle_chest(self):
+    chest_count = 0
+    print(f"{now()}📦 Starting chest cycle...")
+
+    while self.is_discard_button_present():
+        print(f"{now()}🔍 Chest #{chest_count + 1} detected")
+
+        if not self.active:
+            print(f"{now()}🛑 Killswitch triggered during chest cycle—exiting")
+            return
+
+        aura, chest_type = self.get_aura_and_type()
+        print(f"{now()}🎨 Aura: {aura}, Type: {chest_type}")
+
+        if aura is None or chest_type is None:
+            print(f"{now()} ⚠️ Skipping chest due to invalid aura/type data.")
+            time.sleep(1) # Add a small delay before retrying
+            continue # This will go to the next loop iteration
+
+        if self.is_valid_aura(aura) or self.is_valid_type(chest_type):
+            print(f"{now()}✅ Chest #{chest_count + 1} is valid—opening")
+            self.click(840, 840)
+            print(f"{now()}📦 Chest #{chest_count + 1} opened (clicked 840,840)")
+
+            # This is the correct location for the wait loop
+            print(f"{now()}⏳ Waiting for chest UI to disappear...")
+            start_wait = time.time()
+            while self.is_discard_button_present() and (time.time() - start_wait < 5):
+                time.sleep(0.5)
+
+            if self.is_discard_button_present():
+                print(f"{now()}⚠️ Discard button still present after timeout. Attempting to force close.")
+                self.click(950, 950)
+            else:
+                print(f"{now()}✅ Chest UI is gone. Proceeding.")
+
+        else:
+            print(f"{now()}❌ Chest #{chest_count + 1} invalid—discarding")
+            self.click(950, 950)
+            print(f"{now()}🗑️ Chest #{chest_count + 1} discarded")
+            time.sleep(0.5)
+
+        chest_count += 1
+        time.sleep(random.uniform(0.5, 1.0))
+
+        if not self.active:
+            print(f"{now()}🛑 Killswitch triggered during discard scan—exiting")
+            return
+
+    print(f"{now()}✅ Chest cycle complete after {chest_count} chests")
+    self.allow_movement = True
+    # === Zone & Death ===
+    def detect_death(self):
+        return self.color_match(self.get_pixel(859, 679), (195, 232, 255))
+
+    def handle_death(self):
+        self.click(859, 679)
+        print(f"{now()}💀 Respawned")
+        self.allow_movement = False
+        time.sleep(1)
+
+    def check_zone(self):
+        try:
+            zone_color = self.get_pixel(140, 115)
+        except Exception as e:
+            print(f"{now()}⚠️ Zone pixel read failed: {e}")
+            return False
+        if self.color_match(zone_color, (78, 50, 43)):
+            print(f"{now()}↪️ Rejoining play area")
+            self.hold_key('w', 10)
+            return False
+        elif self.color_match(zone_color, (220, 198, 165)):
+            return True
+        else:
+            print(f"{now()}❓ Unknown zone color: {zone_color}")
+            return False
+
+    def hold_key(self, key, duration):
+        import keyboard
+        keyboard.press(key)
+        time.sleep(duration)
+        keyboard.release(key)
+
+# bot_core
+# repos/cutgrass_autofarm/bot_core.py
+import time
+import random
+import threading
+import keyboard
+import pyautogui
+from ctypes_handler import CtypesMouseInjector
+from bot_chest import ChestHandler
+from bot_utils import now
+from bot_roam import BotRoam
+
+
+class ClassI:
+    def __init__(self):
+        self.active = False
+        self.shutdown = False
+        self.last_move = time.time()
+        self.move_interval = random.uniform(4, 50)
+        self.duty_cycle = 10
+        self.injector = CtypesMouseInjector()
+        self.allow_movement = False
+        
+
+        # ✅ Define aura and type tones BEFORE using them
+        self.valid_auras = {
+            "yellow": (231, 196, 60),
+            "blue": (59, 229, 198)
+        }
+        self.valid_types = {
+            "purple": (61, 16, 86),
+            "grey1": (121, 140, 145),
+            "grey2": (61, 75, 75)
+        }
+
+        # ✅ Now safe to pass them into ChestHandler
+        self.chest_handler = ChestHandler(
+            injector=self.injector,
+            valid_auras=self.valid_auras,
+            valid_types=self.valid_types
+        )
+        self.roam = BotRoam()  # ✅ Must come before hotkeys
+        self.chest_handler = ChestHandler(
+            injector=self.injector,
+            valid_auras=self.valid_auras,
+            valid_types=self.valid_types
+        )
+        keyboard.add_hotkey('-', self.roam.decrease_duty_cycle)
+        keyboard.add_hotkey('=', self.roam.increase_duty_cycle)
+        keyboard.add_hotkey('[', self.toggle_bot)
+        threading.Thread(target=self.killswitch_listener, daemon=True).start()
+
+
+        self.valid_auras = {
+            "yellow": (231, 196, 60),
+            "blue": (59, 229, 198)
+        }
+        self.valid_types = {
+            "purple": (61, 16, 86),
+            "grey1": (121, 140, 145),
+            "grey2": (61, 75, 75)
+        }
+
+    def killswitch_listener(self):
+        while not self.shutdown:
+            if keyboard.is_pressed('j') and keyboard.is_pressed('k') and keyboard.is_pressed('l'):
+                self.shutdown = True
+                self.active = False
+                print(f"{now()}🛑 Killswitch activated")
+            time.sleep(0.1)
+
+    def toggle_bot(self):
+        if not self.shutdown:
+            self.active = not self.active
+            self.chest_handler.sync_flags(self.active, self.allow_movement)
+            print(f"{now()}🔁 Bot {'ENABLED' if self.active else 'DISABLED'}")
+
+
+    def run(self):
+        print(f"{now()}🔁 Loop started")
+        death_check_interval = 2.5
+        last_death_check = time.time()
+        print(f"{now()} 🎮 ClassI initialized. Press [ to toggle. J+K+L to kill.")
+        try:
+            while not self.shutdown:
+                # Movement logic
+                if self.allow_movement and time.time() - self.last_move > self.move_interval:
+                    print(f"{now()} 🚶 Movement triggered")
+                    self.roam.random_movement()
+                    self.last_move = time.time()
+                    self.move_interval = random.uniform(4, 50)
+
+                if not self.active:
+                    time.sleep(0.25)
+                    continue
+
+                print(f"{now()} 🎮 CGfarm successfully loaded. (c) Copilot & Pank.")
+
+                # Death check
+                if time.time() - last_death_check >= death_check_interval:
+                    last_death_check = time.time()
+                    self.chest_handler.sync_flags(self.active, self.allow_movement)  # ✅ Sync flags
+                    if self.chest_handler.detect_death():
+                        self.chest_handler.handle_death()
+                        self.chest_handler.handle_chest()
+                        continue  # Skip movement until chest is handled
+
+                # Zone check
+                if not self.chest_handler.check_zone():
+                    time.sleep(0.5)
+                    continue
+
+                time.sleep(0.25)
+        except Exception as e:
+            print(f"{now()} ❌ Fatal error: {e}")
+
+            
+# repos/cutgrass_autofarm/bot_utils.py
+
+from datetime import datetime
+from PIL import ImageGrab
+
+def now():
+    return datetime.now().strftime("[%H:%M:%S]")
+
+def color_match(c1, c2, tolerance=20):
+    return all(abs(a - b) <= tolerance for a, b in zip(c1, c2))
+
+def get_pixel(x, y):
+    try:
+        img = ImageGrab.grab(bbox=(x, y, x+1, y+1))
+        return img.getpixel((0, 0))
+    except Exception as e:
+        print(f"{now()} ⚠️ Pixel read failed at ({x},{y}): {e}")
+        return (0, 0, 0)
+
+def log_event(tag, message):
+    print(f"{now()} {tag} {message}")
+
+# repos/cutgrass_autofarm/bot_roam.py
+
+import time
+import random
+import pyautogui
+from bot_utils import now
+
+class BotRoam:
+    def __init__(self):
+        self.duty_cycle = 10
+
+    def random_movement(self):
+        key = random.choice(['w', 'a', 's', 'd'])
+        duration = random.uniform(4, 40)
+        print(f"{now()}🚶 Holding {key.upper()} for {duration:.2f}s")
+        pyautogui.keyDown(key)
+        time.sleep(duration)
+        pyautogui.keyUp(key)
+
+    def walk_forward(self, duration=10):
+        print(f"{now()}🚶 Walking forward for {duration}s")
+        self.hold_key('w', duration)
+
+    def hold_key(self, key, duration):
+        pyautogui.keyDown(key)
+        time.sleep(duration)
+        pyautogui.keyUp(key)
+
+    def increase_duty_cycle(self):
+        self.duty_cycle = min(60, self.duty_cycle + 1)
+        print(f"{now()}🔺 Duty cycle: {self.duty_cycle}s")
+
+    def decrease_duty_cycle(self):
+        self.duty_cycle = max(1, self.duty_cycle - 1)
+        print(f"{now()}🔻 Duty cycle: {self.duty_cycle}s")
+
+# repos/cutgrass_autofarm/ctypes_handler.py
+import ctypes
+import time
+
+class CtypesMouseInjector:
+    def __init__(self):
+        self.INPUT_MOUSE = 0
+        self.MOUSEEVENTF_MOVE = 0x0001
+        self.MOUSEEVENTF_LEFTDOWN = 0x0002
+        self.MOUSEEVENTF_LEFTUP = 0x0004
+        self.MOUSEEVENTF_ABSOLUTE = 0x8000
+
+        class MOUSEINPUT(ctypes.Structure):
+            _fields_ = [("dx", ctypes.c_long),
+                        ("dy", ctypes.c_long),
+                        ("mouseData", ctypes.c_ulong),
+                        ("dwFlags", ctypes.c_ulong),
+                        ("time", ctypes.c_ulong),
+                        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+        class INPUT(ctypes.Structure):
+            _fields_ = [("type", ctypes.c_ulong),
+                        ("mi", MOUSEINPUT)]
+
+        self.INPUT = INPUT
+        self.MOUSEINPUT = MOUSEINPUT
+
+    def move(self, x, y):
+        screen_width = ctypes.windll.user32.GetSystemMetrics(0)
+        screen_height = ctypes.windll.user32.GetSystemMetrics(1)
+
+        abs_x = int(x * 65535 / screen_width)
+        abs_y = int(y * 65535 / screen_height)
+
+        self._send(abs_x, abs_y, self.MOUSEEVENTF_MOVE | self.MOUSEEVENTF_ABSOLUTE)
+
+    def click(self, x, y):
+        self.move(x, y)
+        time.sleep(0.01)
+        self._send_click(self.MOUSEEVENTF_LEFTDOWN)
+        time.sleep(0.01)
+        self._send_click(self.MOUSEEVENTF_LEFTUP)
+
+    def _send_click(self, flags):
+        extra = ctypes.c_ulong(0)
+        mi = self.MOUSEINPUT(
+            dx=0,
+            dy=0,
+            mouseData=0,
+            dwFlags=flags,
+            time=0,
+            dwExtraInfo=ctypes.pointer(extra)
+        )
+        inp = self.INPUT(self.INPUT_MOUSE, mi)
+        ctypes.windll.user32.SendInput(1, ctypes.pointer(inp), ctypes.sizeof(inp))
+
+
+    def _send(self, x, y, flags, absolute=True):
+        extra = ctypes.c_ulong(0)
+        mi = self.MOUSEINPUT(
+            x if flags & self.MOUSEEVENTF_MOVE else 0,
+            y if flags & self.MOUSEEVENTF_MOVE else 0,
+            0,
+            flags | (self.MOUSEEVENTF_ABSOLUTE if absolute else 0),
+            0,
+            ctypes.pointer(extra)
+        )
+        inp = self.INPUT(self.INPUT_MOUSE, mi)
+        ctypes.windll.user32.SendInput(1, ctypes.pointer(inp), ctypes.sizeof(inp))
