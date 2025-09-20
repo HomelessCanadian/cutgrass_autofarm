@@ -62,7 +62,7 @@ class ChestHandler:
     def get_chest_ui_region(self):
         return [(x, y) for x in range(796, 796 + 95) for y in range(914, 914 + 35)]
 
-    def red_saturation(self, region):
+    def red_saturation(self, region): # test if discard button is depressed in ui - just for reliability
         if not region:
             return 0
 
@@ -93,7 +93,7 @@ class ChestHandler:
             return 0
 
 
-    def discard_button_present(self):
+    def discard_button_present(self): # for detecting chest UI presence
         region = [(x, y) for x in range(800, 800 + 90) for y in range(915, 915 + 30)]
         target_colors = [(255, 0, 7), (179, 0, 5)]
         for x, y in region:
@@ -112,7 +112,7 @@ class ChestHandler:
         return pixel[0] < 100 and pixel[1] > 50 and pixel[2] > 50
 
 
-    def wait_for_discard_absence(self, timeout=15):
+    def wait_for_discard_absence(self, timeout=15): # wait for discard button to disappear to continue the afk loop
         start_time = time.time()
         while self.discard_button_present():
             if time.time() - start_time > timeout:
@@ -248,7 +248,7 @@ class ChestHandler:
         print(f"{now()}⚠️ Unknown chest mode: {mode} — defaulting to discard")
         return False
 
-    def is_discard_button_present(self):
+    def is_discard_button_present(self): # possible redudancy to wait_for_discard_absence - idk which it uses or when
         coords = [(838, 906), (842, 910)]
         discard_colors = [(255, 0, 7), (179, 0, 5)]  # FF0007, B30005
 
@@ -261,34 +261,7 @@ class ChestHandler:
         print(f"{now()}🕵️ Discard button not detected at key pixels")
         return False
 
-
-#     def handle_chest(self): #standard 
-#         chest_count = 0
-#         while self.discard_button_present():
-#             if not self.active:
-#                 print(f"{now()}🛑 Killswitch triggered during chest cycle—exiting")
-#                 return
-#             aura, chest_type = self.get_aura_and_type()
-#             if self.is_valid_aura(aura) or self.is_valid_type(chest_type):
-#                 self.click(950, 800)
-#                 print(f"{now()}📦 Chest #{chest_count + 1} opened")
-#                 red_ready = self.red_saturation(self.get_chest_ui_region()) > 0.8
-#                 button_ready = not self.discard_button_darkened()
-#                 pixel = self.get_pixel(1000, 850)
-#                 if red_ready and button_ready:
-#                     self.click(1000, 750)  # ✅ Always press single Open
-#                     print(f"{now()}📦 Chest #{chest_count + 1} opened (forced single)")
-#                 else:
-#                     print(f"{now()}⚠️ Chest UI not ready or button dark—skipping click")
-#                 self.wait_for_red_drop(threshold=0.95, timeout=15)
-#             else:
-#                 self.click(950, 950)
-#                 print(f"{now()}🗑️ Chest #{chest_count + 1} discarded")
-#             chest_count += 1
-#             time.sleep(random.uniform(0.5, 1.0))
-#         print(f"{now()}✅ Chest cycle complete after {chest_count} chests")
-#         self.allow_movement = True
-    def handle_chest(self):
+    def handle_chest(self): # main chest handling loop
         chest_count = 0
         print(f"{now()}📦 Starting chest cycle...")
 
@@ -356,7 +329,7 @@ class ChestHandler:
         self.allow_movement = True
 
 
-    def detect_death(self):
+    def detect_death(self): # waits for respawn button to appear. if so, clicks it and starts the chest handler
         pixel = self.get_pixel(859, 679)
         if self.color_match(pixel, (195, 232, 255), tolerance=25):
             print(f"{now()}💀 Death detected at (859,679) → {pixel}")
@@ -377,7 +350,7 @@ class ChestHandler:
                 break
             time.sleep(0.5)
 
-    def check_zone(self):
+    def check_zone(self): # idk what this is doing tbh. I think this is the old implementation of checking for chest ui presence
         try:
             zone_color = self.get_pixel(140, 115)
         except Exception as e:
@@ -395,7 +368,7 @@ class ChestHandler:
             print(f"{now()}❓ Unknown zone color: {zone_color}")
             return False
 
-    def hold_key(self, key, duration):
+    def hold_key(self, key, duration): # part of above ? 
         import keyboard
         keyboard.press(key)
         time.sleep(duration)
