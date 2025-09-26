@@ -1,4 +1,4 @@
-## Shell License v1.0  
+## Shell License v1.01
 
 Portions of this codebase and documentation were generated with the assistance of AI tools. These segments may not be eligible for copyright protection under current U.S. law. All original contributions are subject to the Shell License terms.
 
@@ -9,7 +9,7 @@ By using this software or documentation, you accept these terms. If you do not a
 
 #### Installation and Use Rights  
 - You may use this software and documentation freely for personal, educational, and non-commercial purposes.  
-- Commercial use is permitted only with proper attribution and a clear contribution back to the project or its ecosystem.
+- Commercial use is permitted only with proper attribution.
 
 #### Redistribution Rights  
 - Redistribution is allowed as long as it is free of charge and includes this license.  

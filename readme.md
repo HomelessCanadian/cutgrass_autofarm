@@ -1,69 +1,84 @@
-# 🌾 Cutgrass Autofarm  (beta)
-**AFK chest farming with expressive control and tactical resilience.**
+***
 
----
+# 🌾 Cutgrass Autofarm (beta)
+**AFK chest farming, movement, and tactical resilience—now with AFK mode.**
 
-## 📦 What It Does
+***
 
-Cutgrass Autofarm automates chest interactions in-game using pixel detection and input injection. It opens valid chests, discards junk, walks forward when done, and loops randomized movement to simulate human activity. Built for reliability, not fragility.
+## 🧩 Project Summary
 
----
+Cutgrass Autofarm is a modular automation bot for the CG game environment.  
+It supports both full-feature and AFK-only modes, enabling automated chest interaction, expressive AFK movement, and survival routines with hotkey control.
+
+***
+
+## 📦 Features
+
+- **AFK Mode:** Bot cycles directional movement (W → WA → A → SA ect to form a circular pattern) with random timing to avoid idle triggers and fence traps.
+- **Chest Automation:** Opens valid chests, discards junk, and taps E for extra loot.
+- **Toggle Control:** `[`: Toggle bot on/off. `J + K + L`: Emergency shutdown (killswitch).
+- **Threaded Architecture:** Movement, death detection, and chest handling run in parallel for responsive control.
+- **Modular Design:** Easily extendable—add custom movement sequences and debug overlays.
+
+***
 
 ## 🧰 Dependencies
 
-Make sure these are installed before running:
-
 - **Python 3.9+**
-- `pyautogui` — for screen interaction  
-- `Pillow` — for pixel sampling  
-- `keyboard` — for hotkey toggles  
-- `ctypes` — for HID-level input injection (included via native Python)  
-- `time`, `random`, `os` — standard libraries
+- `pyautogui`
+- `keyboard`
+- `Pillow`
+- Standard library: `time`, `random`, `os`
+- (Mouse injection via Python `ctypes` included)
 
-Install with:
-
+Install dependencies:
 ```bash
 pip install pyautogui pillow keyboard
 ```
 
----
+***
 
-## 🖥️ Setup & Usage
+## 🖥️ Usage
 
-1. Clone or download the repo  
-2. Launch the game and position your character near chests  
-3. Run the script:
-
-```bash
-python cgfarm.py
-```
+1. Download or clone the repository.
+2. Start the CG game and position near chests.
+3. Run the bot:
+   ```bash
+   python cgfarm.py --afk
+   ```
+   - AFK-only mode: Simulates movement and chest tapping; disables death detection/chest logic for pure idle farming.
 
 4. Controls:
-   - Press `[` to toggle the bot on/off  
-   - Press `J + K + L` together to kill the bot instantly
+   - Press `[` to toggle the bot on/off.
+   - Hold `J + K + L` for emergency killswitch.
 
----
+***
 
 ## 🧭 Behavior Summary
 
-- Detects chest type and aura via pixel scan  
-- Rejoins play zone if death is detected
-- Opens valid chests, discards others  (classes coming soon)
-- Waits for red UI saturation to drop before walking forward  
-- Walks forward for 10 seconds, then resumes AFK movement  
-- Randomly holds `W/A/S/D` for 4–40 seconds to simulate activity  
+- Detects chest types and auras with pixel scanning.
+- Handles AFK movement and chest opening/discarding.
+- Rejoins the play zone after death (full mode).
+- Waits for UI signals before advancing.
+- Randomizes movement keys and hold durations to mimic real play.
 
----
-
-### 🐚 License
-
-This project is licensed under the **Shell License v1.0**. See Shell_License.md for more details.
-
----
+***
 
 ## 🧪 Notes
 
-- Designed for expressive control, not stealth  
-- Works best in windowed mode with consistent UI scaling  
-- May misfire if obstructed by overlays, guitars, or cats  
-- Designed for 1080p resolution. May require scaling
+- Designed for expressive and reliable control, not stealth.
+- Works best in windowed mode and with consistent UI scaling.
+- May need adjustment for resolutions other than 1080p.
+- Unexpected overlays/animals can interfere with pixel detection.
+
+***
+
+## 🐚 License
+
+Licensed under **Shell License v1.0** (see Shell_License.md).
+
+***
+
+**Beta status:** Expect bugs and UI changes. Feedback and PRs welcome!
+
+***
